@@ -1,5 +1,12 @@
 # Code By Alex Stettner
 # Using Pygame Engine
+
+# TODO: Add obstacle avoidance
+# TODO: Add menu
+# TODO: Add setting sliders
+# TODO: Add additional visual effects
+
+
 import pygame
 from Environment import Environment
 from Renderer import *

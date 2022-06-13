@@ -22,10 +22,10 @@ class BoidHandler:
 
         # Constants that determine the boids flocking behavior
         self.max_speed = max_speed
-        self.centering_factor = 0.001
-        self.min_distance = 20
-        self.avoid_factor = 0.05
-        self.group_range = 75
+        self.centering_factor = 0.00001
+        self.min_distance = 50
+        self.avoid_factor = 0.5
+        self.group_range = 100
         self.matching_force = .05
 
     # Reset all boid data
@@ -70,6 +70,7 @@ class BoidHandler:
 
     # Returns a numpy array of boid nums in a particular radius
     # Needs to be given the distances array
+    # Result will include the boid that distances are calculated from
     def get_nearby(self, distances, radius):
         nearby = np.array([], dtype=int)
         for distance in distances:
@@ -89,20 +90,24 @@ class BoidHandler:
 
     # Calculate object avoiding force
     def obstacle_avoid_force(self):
+        # TODO: add functionality
         pass
 
     # Calculate force avoiding collisions with nearby boids
     def boid_avoid_force(self, boid_num, distances):
         boids_to_avoid = self.get_nearby(distances, self.min_distance)
+        print(f"~~~~ {boid_num} ~~~~")
         if boids_to_avoid.size != 0:
+            print(f"{boids_to_avoid}")
             avoid_vel = np.array([0, 0], dtype=float)
             for other_boid in boids_to_avoid:
-                diff = self._boids_pos[boid_num] - self._boids_pos[other_boid]
-                avoid_vel += diff / norm(diff, keepdims=True)
-                print(avoid_vel)
+                if other_boid != boid_num:
+                    diff = self._boids_pos[boid_num] - self._boids_pos[other_boid]
+                    print(diff / norm(diff, keepdims=True))
+                    avoid_vel += (diff / norm(diff, keepdims=True)**2)
             self._boids_vel[boid_num] += avoid_vel * self.avoid_factor
 
-    # calculate force matching velocity with neighboring boids
+    # Calculate force matching velocity with neighboring boids
     def velocity_match_force(self, boid_num, distances):
         group = self.get_nearby(distances, self.group_range)
         avg_group_vel = np.array([0, 0], dtype=float)
@@ -123,6 +128,8 @@ class BoidHandler:
             distances = self.get_distances(boid)
             self.centering_force(boid, distances)
             self.boid_avoid_force(boid, distances)
+            # TODO: Implement obstetrical avoid
+            # self.obstacle_avoid_force()
             self.velocity_match_force(boid, distances)
             self.speed_limiter(boid)
         self.move_boids(dt)
