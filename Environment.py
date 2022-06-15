@@ -6,7 +6,7 @@ class Environment:
     def __init__(self, width, height):
         self.width = width
         self.height = height
-        self.boidHandler = BoidHandler()
+        self.boidHandler = BoidHandler(width, height)
         self.obstacleHandler = ObstacleHandler()
 
     def add_boid(self, x, y):

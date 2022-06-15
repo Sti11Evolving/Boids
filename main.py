@@ -17,9 +17,9 @@ class Boids_App:
     def __init__(self):
         self._running = True
         self._display_surf = None
-        self.size = self.weight, self.height = 640, 400
+        self.size = self.width, self.height = 640, 400
         self.renderer = None
-        self.environment = Environment(640, 400)
+        self.environment = Environment(self.width, self.height)
         self.clock = pygame.time.Clock()
         self.debug = True
 
