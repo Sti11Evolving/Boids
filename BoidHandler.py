@@ -3,15 +3,18 @@ from numpy import linalg as la
 import random
 from numpy.linalg import norm
 
+
 # Returns a numpy array of boid nums in a particular radius
 # Needs to be given the distances array
 # Result will include the boid that distances are calculated from
-def get_nearby(distances, radius):
+def _get_nearby(distances, radius):
     nearby = np.array([], dtype=int)
-    for distance in distances:
-        if distance[0] < radius:
-            nearby = np.append(nearby, distance[1])
+    distances_iter = np.nditer(distances, flags=["c_index"])
+    for distance in distances_iter:
+        if distance < radius:
+            nearby = np.append(nearby, distances_iter.index)
     return nearby
+
 
 # Probably could be more readable if boids were individual objects, but using numpy arrays for performance's sake
 # Holds positional, velocity, and color for all boids in 2D numpy array and updating functions
@@ -35,11 +38,13 @@ class BoidHandler:
 
         # Constants that determine the boids flocking behavior
         self.max_speed = max_speed
-        self.centering_factor = 0.001
+        self.centering_factor = 0.00001
         self.min_distance = 50
         self.avoid_factor = 0.1
         self.group_range = 100
-        self.matching_force = .5
+        self.obstacle_range = 20
+        self.matching_force = .005
+        self.speed_mod = 5
 
     # Reset all boid data
     def clear_boids(self):
@@ -50,7 +55,7 @@ class BoidHandler:
 
     # Add boid data for a new boid to the data list
     def add_boid(self, pos=[[0, 0]], vel=[[0, 0]], color=[[255, 0, 0]]):
-        self._boids_pos = np.concatenate((self._boids_pos, pos), dtype=int, axis=0)
+        self._boids_pos = np.concatenate((self._boids_pos, pos), dtype=float, axis=0)
         self._boids_vel = np.concatenate((self._boids_vel, vel), dtype=float, axis=0)
         self.boids_color = np.concatenate((self.boids_color, color), axis=0)
         self.num_boids += 1
@@ -72,18 +77,27 @@ class BoidHandler:
                           [[random.uniform(-100, 100), random.uniform(-100, 100)]])
 
     # Returns an array of distances in relation to a particular boid
-    def get_distances(self, boid_num):
-        distances = np.empty(self.num_boids, dtype=[('distance', int), ('index', int)])
+    def get_distances(self, boid_num, other_boids):
+        distances = np.empty_like(other_boids, dtype=int)
         pos = self._boids_pos[boid_num]
-        idx = 0
-        for other_pos in self._boids_pos[::, ]:
-            distances[idx] = (((pos[0] - other_pos[0]) ** 2 + (pos[1] - other_pos[1]) ** 2) ** .5, idx)
-            idx += 1
+        for idx, other_boid in enumerate(other_boids):
+            other_pos = self._boids_pos[other_boid]
+            distance = ((pos[0] - other_pos[0]) ** 2 + (pos[1] - other_pos[1]) ** 2) ** .5
+            distances[idx] = distance
         return distances
+
+    def distances_matrix(self):
+        dist_mat = np.zeros(shape=[self.num_boids, self.num_boids], dtype=int)
+        for boid in range(self.num_boids - 1):
+            dist = self.get_distances(boid, range(boid, self.num_boids))
+            dist_mat[boid::, boid] = dist
+            dist_mat[boid][boid::] = dist
+        return dist_mat
+
 
     # Calculate force of boids to turn towards center of group
     def centering_force(self, boid_num, distances):
-        group = get_nearby(distances, self.group_range)
+        group = _get_nearby(distances, self.group_range)
         num_neighbors = np.size(group)
         center = np.zeros(2)
         for neighbor in group:
@@ -94,34 +108,31 @@ class BoidHandler:
     # Calculate object avoiding force
     def obstacle_avoid_force(self, boid_num):
         boid_x = self._boids_pos[boid_num][0]
-        if boid_x < self.group_range:
-            self._boids_vel[boid_num][0] += (self.group_range - boid_x) * self.avoid_factor
-        elif boid_x > self.environment_width - self.group_range:
-            self._boids_vel[boid_num][0] += ((self.environment_width - self.group_range) - boid_x) * self.avoid_factor
+        if boid_x < self.obstacle_range:
+            self._boids_vel[boid_num][0] += (self.obstacle_range - boid_x) * self.avoid_factor
+        elif boid_x > self.environment_width - self.obstacle_range:
+            self._boids_vel[boid_num][0] += ((self.environment_width - self.obstacle_range) - boid_x) * self.avoid_factor
 
         boid_y = self._boids_pos[boid_num][1]
-        if boid_y < self.group_range:
-            self._boids_vel[boid_num][1] += (self.group_range - boid_y) * self.avoid_factor
-        elif boid_y > self.environment_height - self.group_range:
-            self._boids_vel[boid_num][1] += ((self.environment_height - self.group_range) - boid_y) * self.avoid_factor
+        if boid_y < self.obstacle_range:
+            self._boids_vel[boid_num][1] += (self.obstacle_range - boid_y) * self.avoid_factor
+        elif boid_y > self.environment_height - self.obstacle_range:
+            self._boids_vel[boid_num][1] += ((self.environment_height - self.obstacle_range) - boid_y) * self.avoid_factor
 
     # Calculate force avoiding collisions with nearby boids
     def boid_avoid_force(self, boid_num, distances):
-        boids_to_avoid = get_nearby(distances, self.min_distance)
-        print(f"~~~~ {boid_num} ~~~~")
+        boids_to_avoid = _get_nearby(distances, self.min_distance)
         if boids_to_avoid.size != 0:
-            print(f"{boids_to_avoid}")
             avoid_vel = np.array([0, 0], dtype=float)
             for other_boid in boids_to_avoid:
                 if other_boid != boid_num:
                     diff = self._boids_pos[boid_num] - self._boids_pos[other_boid]
-                    print(diff / norm(diff, keepdims=True))
                     avoid_vel += (diff / norm(diff, keepdims=True) ** 2)
             self._boids_vel[boid_num] += avoid_vel * self.avoid_factor
 
     # Calculate force matching velocity with neighboring boids
     def velocity_match_force(self, boid_num, distances):
-        group = get_nearby(distances, self.group_range)
+        group = _get_nearby(distances, self.group_range)
         avg_group_vel = np.array([0, 0], dtype=float)
         for other_boid in group:
             avg_group_vel += self._boids_vel[other_boid]
@@ -130,20 +141,20 @@ class BoidHandler:
 
     def speed_limiter(self, boid_num):
         if la.norm(self._boids_vel[boid_num]) > self.max_speed:
-            print(f"Boid {boid_num} moved too fast")
             self._boids_vel[boid_num] = self.max_speed * (
                         self._boids_vel[boid_num] / la.norm(self._boids_vel[boid_num]))
 
     def move_boids(self, dt):
-        self._boids_pos = np.add(self._boids_pos, np.multiply(self._boids_vel, dt))
+        move_amount = np.multiply(self._boids_vel, dt * self.speed_mod)
+        self._boids_pos = np.add(self._boids_pos, move_amount)
 
     def update(self, obstacles, dt):
+        dist_mat = self.distances_matrix()
         for boid in range(self.num_boids):
-            distances = self.get_distances(boid)
+            distances = dist_mat[boid]
             self.centering_force(boid, distances)
             self.boid_avoid_force(boid, distances)
             self.obstacle_avoid_force(boid)
             self.velocity_match_force(boid, distances)
             self.speed_limiter(boid)
-        print(self._boids_vel)
         self.move_boids(dt)
