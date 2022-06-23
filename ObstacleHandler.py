@@ -16,4 +16,3 @@ class ObstacleHandler:
         else:
             self.obstacles = np.array([[point1, point2]])
             self.num_obstacles += 1
-

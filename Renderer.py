@@ -8,9 +8,9 @@ class Renderer:
         self.pygame.draw.rect(self.screen, color, self.pygame.Rect((0, 0), self.app.size))
 
     def draw_boids(self, boid_handler):
-        for boid in range(boid_handler.num_boids):
-            self.pygame.draw.circle(self.screen, boid_handler.boids_color[boid],
-                                    boid_handler._boids_pos[boid], 10)
+        boids = boid_handler.get_boids()
+        for boid in boids:
+            self.pygame.draw.circle(self.screen, boid['color'], (int(boid['x']), int(boid['y'])), 10)
 
     def draw_obstacles(self, obstacles_handler):
         for obstacle in range(obstacles_handler.num_obstacles):

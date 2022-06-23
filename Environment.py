@@ -1,6 +1,6 @@
 from BoidHandler import BoidHandler
 from ObstacleHandler import ObstacleHandler
-import numpy as np
+
 
 class Environment:
     def __init__(self, width, height):
