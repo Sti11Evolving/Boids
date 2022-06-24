@@ -4,6 +4,10 @@ class Renderer:
         self.pygame = pygame
         self.screen = surface
 
+    def draw_menu(self, menu):
+        menu.draw(self.screen)
+        self.update()
+
     def draw_solid_background(self, color):
         self.pygame.draw.rect(self.screen, color, self.pygame.Rect((0, 0), self.app.size))
 

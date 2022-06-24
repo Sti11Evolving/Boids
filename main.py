@@ -41,12 +41,18 @@ class BoidsApp:
         self.renderer = Renderer(self, pygame, self._display_surf)
         self._running = True
         self.menu = self.menu_handler.main_menu(self.width, self.height)
-        self.environment.add_random_boids(25)
         self.environment.add_walls()
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
+        elif event.type == self.menu_handler.START:
+            self.environment.boidHandler.clear_boids()
+            self.environment.add_random_boids(25)
+            self.in_menu = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == 27:  # escape key
+                self.in_menu = True
 
     def on_loop(self, dt):
         self.environment.update(dt)
@@ -70,7 +76,7 @@ class BoidsApp:
 
             if self.in_menu:
                 self.menu.update(events)
-                self.menu.draw(self._display_surf)
+                self.renderer.draw_menu(self.menu)
             else:
                 self.clock.tick(self.fps_limit)
                 dt = self.clock.get_time()
