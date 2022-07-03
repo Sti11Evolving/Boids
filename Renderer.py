@@ -4,6 +4,9 @@ class Renderer:
         self.pygame = pygame
         self.screen = surface
 
+    def update_surface(self, surface):
+        self.screen = surface
+
     def draw_menu(self, menu):
         menu.draw(self.screen)
         self.update()

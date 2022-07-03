@@ -12,7 +12,9 @@ from Environment import Environment
 from Renderer import *
 from pygame.locals import *
 import pygame_menu
-from MenuHandler import MenuHandler
+import MenuHandler
+import os
+from SettingsValues import SettingsValues as SV
 
 pygame.display.set_caption('Boids!')
 
@@ -30,8 +32,7 @@ class BoidsApp:
         self.renderer = None
         self.environment = Environment(self.width, self.height)
         self.clock = pygame.time.Clock()
-        self.debug = True
-        self.menu_handler = MenuHandler()
+        self.show_fps = True
         self.in_menu = True
         self.menu = None
 
@@ -40,28 +41,54 @@ class BoidsApp:
         self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
         self.renderer = Renderer(self, pygame, self._display_surf)
         self._running = True
-        self.menu = self.menu_handler.main_menu(self.width, self.height)
+        self.menu = MenuHandler.main_menu(self.width, self.height)
         self.environment.add_walls()
+
+    def update_settings(self, settings):
+        if settings['screen_mode'] == SV.FULL_SCREEN:
+            print("fullscreen")
+            pygame.display.quit()
+            pygame.display.init()
+            self._display_surf = pygame.display.set_mode((0, 0), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.FULLSCREEN)
+            self.renderer.update_surface(self._display_surf)
+        elif settings['screen_mode'] == SV.BORDERLESS:
+            print('borderless')
+            os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
+            pygame.display.quit()
+            pygame.display.init()
+            self._display_surf = pygame.display.set_mode((0, 0), pygame.HWSURFACE | pygame.DOUBLEBUF | pygame.NOFRAME)
+            self.renderer.update_surface(self._display_surf)
+        elif settings['screen_mode'] == SV.WINDOWED:
+            print('windowed')
+            os.environ['SDL_VIDEO_WINDOW_POS'] = ""
+            pygame.display.quit()
+            pygame.display.init()
+            self._display_surf = pygame.display.set_mode(self.size, pygame.HWSURFACE | pygame.DOUBLEBUF)
+            self.renderer.update_surface(self._display_surf)
 
     def on_event(self, event):
         if event.type == pygame.QUIT:
             self._running = False
-        elif event.type == self.menu_handler.START:
+        elif event.type == MenuHandler.START:
             self.environment.boidHandler.clear_boids()
             self.environment.add_random_boids(25)
             self.in_menu = False
         elif event.type == pygame.KEYDOWN:
             if event.key == 27:  # escape key
                 self.in_menu = True
+        elif event.type == MenuHandler.UPDATE_SETTINGS:
+            self.update_settings(MenuHandler.settings.settings)
 
-    def on_loop(self, dt):
+    def on_game_loop(self):
+        self.clock.tick(self.fps_limit)
+        dt = self.clock.get_time()
         self.environment.update(dt)
 
-    def on_render(self):
+    def on_game_render(self):
         self.renderer.draw_solid_background((255, 255, 255))
         self.renderer.draw_boids(self.environment.boidHandler)
         self.renderer.draw_obstacles(self.environment.obstacleHandler)
-        if self.debug:
+        if self.show_fps:
             self.renderer.draw_fps(self.clock)
         self.renderer.update()
 
@@ -78,10 +105,8 @@ class BoidsApp:
                 self.menu.update(events)
                 self.renderer.draw_menu(self.menu)
             else:
-                self.clock.tick(self.fps_limit)
-                dt = self.clock.get_time()
-                self.on_loop(dt)
-                self.on_render()
+                self.on_game_loop()
+                self.on_game_render()
 
         on_cleanup()
 
